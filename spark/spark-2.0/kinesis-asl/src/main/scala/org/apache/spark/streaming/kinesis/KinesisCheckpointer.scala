@@ -18,6 +18,8 @@ package org.apache.spark.streaming.kinesis
 
 import java.util.concurrent._
 
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.CheckpointerShim
+
 import scala.util.control.NonFatal
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
@@ -67,7 +69,7 @@ private[kinesis] class KinesisCheckpointer(
   def removeCheckpointer(shardId: String, checkpointer: IRecordProcessorCheckpointer): Unit = {
     synchronized {
       checkpointers.remove(shardId)
-      checkpoint(shardId, checkpointer)
+      CheckpointerShim.shutdown(checkpointer)
     }
   }
 
