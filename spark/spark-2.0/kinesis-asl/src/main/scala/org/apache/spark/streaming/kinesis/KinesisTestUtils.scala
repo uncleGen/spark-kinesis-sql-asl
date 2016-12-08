@@ -96,6 +96,31 @@ private[spark] class KinesisTestUtils(streamShardCount: Int = 2) extends Logging
     logInfo(s"Created stream ${_streamName}")
   }
 
+  def getShards(): Seq[Shard] = {
+    kinesisClient.describeStream(_streamName).getStreamDescription.getShards.asScala
+  }
+
+  def splitShard(shardId: String): Unit = {
+    val splitShardRequest = new SplitShardRequest()
+    splitShardRequest.withStreamName(_streamName)
+    splitShardRequest.withShardToSplit(shardId)
+    // Set a half of the max hash value
+    splitShardRequest.withNewStartingHashKey("170141183460469231731687303715884105728")
+    kinesisClient.splitShard(splitShardRequest)
+    // Wait for the shards to become active
+    waitForStreamToBeActive(_streamName)
+  }
+
+  def mergeShard(shardToMerge: String, adjacentShardToMerge: String): Unit = {
+    val mergeShardRequest = new MergeShardsRequest
+    mergeShardRequest.withStreamName(_streamName)
+    mergeShardRequest.withShardToMerge(shardToMerge)
+    mergeShardRequest.withAdjacentShardToMerge(adjacentShardToMerge)
+    kinesisClient.mergeShards(mergeShardRequest)
+    // Wait for the shards to become active
+    waitForStreamToBeActive(_streamName)
+  }
+
   /**
    * Push data to Kinesis stream and return a map of
    * shardId -> seq of (data, seq number) pushed to corresponding shard
