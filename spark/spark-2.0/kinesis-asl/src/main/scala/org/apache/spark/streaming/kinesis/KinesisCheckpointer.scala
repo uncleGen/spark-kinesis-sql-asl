@@ -22,6 +22,7 @@ import scala.util.control.NonFatal
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.CheckpointerShim
+import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownReason
 import com.amazonaws.services.kinesis.metrics.impl.{MetricsHelper, NullMetricsScope}
 
@@ -71,7 +72,11 @@ private[kinesis] class KinesisCheckpointer(
       checkpoint(shardId, checkpointer)
       try {
         // Try a checkpoint with `SHARD_END` to finish reading a shard of `shardId`
-        CheckpointerShim.shutdown(checkpointer)
+        // CheckpointerShim.shutdown(checkpointer)
+        val lastSeqNum = ExtendedSequenceNumber.SHARD_END
+        KinesisRecordProcessor.retryRandom(
+          checkpointer.checkpoint(lastSeqNum.getSequenceNumber, lastSeqNum.getSubSequenceNumber),
+          4, 100)
       } catch {
         case NonFatal(e) =>
         logError(s"Exception:  WorkerId $workerId encountered an exception while checkpointing" +
